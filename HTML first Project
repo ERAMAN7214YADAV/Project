@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aman's Portfolio</title>
+    <style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+img {
+    border-radius: 50%;
+    border:3px solid whitesmoke;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    color: #263b3a;
+    line-height: 1.6;
+    background-color: #f9f9f9;
+}
+header {
+    background-color: #263b3a;
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+section:hover {
+    margin: 20px;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    color: rgb(47, 48, 54);
+}
+
+section h2 {
+    color: #263b3a;
+    margin-bottom: 10px;
+}
+
+footer {
+    background-color: #263b3a;
+    color: white;
+    text-align: center;
+    padding: 10px;
+    position: relative;
+    bottom: 0;
+    width: 100%;
+}
+
+a {
+    color: #1c7ad1;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration:underline;
+    color: aqua;
+}
+    </style>
+</head>
+<body>
+    <header id="home">
+        <img src="port img.jpg" alt="myphoto" height="300">
+        <h1>Hello, I'm Aman Yadav</h1>
+        <p>Aspiring Software Developer and Computer Science Student</p>
+    </header>
+    <section id="about">
+        <h2>About Me</h2>
+        <p>I'm a first-year BTech student at Lovely Professional University, learning the fundamentals of computer science and programming.</p>
+    </section>
+    <hr>
+    <section id="skills">
+        <h2>Skills</h2>
+        <ul>
+            <li>HTML & CSS</li>
+            <li>JavaScript</li>
+            <li>Python</li>
+            <li>C++</li>
+        </ul>
+    </section>
+    <hr>
+
+    <section id="projects">
+        <h2>Projects</h2>
+        <p>Coming soon! I'll be adding my first projects here.</p>
+    </section>
+    <hr>
+    <section id="contact">
+        <h2>Contact</h2>
+        <p>Email: <a href="mailto:amanyadv081786@gmail.com">My Email</a></p>
+    </section>
+    <hr>
+    <section id="Blog">
+        <h2>Blog</h2>
+        <p>Blog Post at: <a href="https://amanyadav2345.blogspot.com">My Blog</a></p>
+    </section>
+<hr>
+    <footer>
+        <p>&copy; 2024 Aman Yadav. All rights reserved.</p>
+    </footer>
+</body>
+</html>
