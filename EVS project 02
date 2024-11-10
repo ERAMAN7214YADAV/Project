@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Energy Consumption Tracker</title>
+    <!-- Include Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js">
+       // Utility function to format the date
+function formatDate(date) {
+    const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+    return new Date(date).toLocaleDateString(undefined, options);
+}
+
+// Get elements
+const energyForm = document.getElementById('energy-form');
+const energyTable = document.getElementById('energy-table').getElementsByTagName('tbody')[0];
+const totalConsumption = document.getElementById('total-consumption');
+const avgConsumption = document.getElementById('avg-consumption');
+const dailyGoalInput = document.getElementById('daily-goal');
+const monthlyGoalInput = document.getElementById('monthly-goal');
+const dailyGoalValue = document.getElementById('daily-goal-value');
+const monthlyGoalValue = document.getElementById('monthly-goal-value');
+const dailyProgress = document.getElementById('daily-progress');
+const monthlyProgress = document.getElementById('monthly-progress');
+const setGoalsButton = document.getElementById('set-goals');
+const timeFilter = document.getElementById('time-filter');
+const energyGraph = document.getElementById('energyGraph');
+const goalGraph = document.getElementById('goalGraph');
+let dailyGoal = 0;
+let monthlyGoal = 0;
+
+// Chart.js setup
+let energyChart, goalChart;
+
+// Load the data from localStorage and display it
+function loadData() {
+    const data = JSON.parse(localStorage.getItem('energyLog')) || [];
+    let total = 0;
+    let labels = [];
+    let energyData = [];
+
+    energyTable.innerHTML = ''; // Clear existing table rows
+
+    data.forEach((entry, index) => {
+        const row = energyTable.insertRow();
+        const dateCell = row.insertCell(0);
+        const energyCell = row.insertCell(1);
+        const actionsCell = row.insertCell(2);
+
+        dateCell.textContent = entry.date;
+        energyCell.textContent = entry.energy + ' kWh';
+
+        // Edit and Delete Buttons
+        const editBtn = document.createElement('button');
+        editBtn.textContent = 'Edit';
+        editBtn.onclick = () => editEntry(index);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.onclick = () => deleteEntry(index);
+
+        actionsCell.appendChild(editBtn);
+        actionsCell.appendChild(deleteBtn);
+
+        total += parseFloat(entry.energy);
+        labels.push(entry.date);
+        energyData.push(entry.energy);
+    });
+
+    // Calculate total and average consumption
+    const avg = data.length > 0 ? total / data.length : 0;
+    totalConsumption.textContent = total.toFixed(2);
+    avgConsumption.textContent = avg.toFixed(2);
+
+    updateProgress();
+
+    // Update graphs
+    updateEnergyGraph(labels, energyData);
+    updateGoalGraph();
+}
+
+// Handle form submission
+energyForm.addEventListener('submit', function(event) {
+    event.preventDefault();
+    
+    const date = document.getElementById('date').value;
+    const energy = document.getElementById('energy').value;
+
+    if (!date || !energy) return;
+
+    const data = JSON.parse(localStorage.getItem('energyLog')) || [];
+    data.push({ date: formatDate(date), energy });
+    localStorage.setItem('energyLog', JSON.stringify(data));
+
+    loadData();
+    energyForm.reset();
+});
+
+// Set energy goals
+setGoalsButton.addEventListener('click', function() {
+    dailyGoal = parseFloat(dailyGoalInput.value) || 0;
+    monthlyGoal = parseFloat(monthlyGoalInput.value) || 0;
+
+    dailyGoalValue.textContent = dailyGoal;
+    monthlyGoalValue.textContent = monthlyGoal;
+
+    localStorage.setItem('dailyGoal', dailyGoal);
+    localStorage.setItem('monthlyGoal', monthlyGoal);
+
+    updateProgress();
+    updateGoalGraph();
+});
+
+// Update goal progress
+function updateProgress() {
+    const data = JSON.parse(localStorage.getItem('energyLog')) || [];
+    let dailyTotal = 0;
+    let monthlyTotal = 0;
+    const currentDate = new Date();
+
+    data.forEach(entry => {
+        const entryDate = new Date(entry.date);
+        const diffDays = Math.floor((currentDate - entryDate) / (1000 * 3600 * 24));
+
+        if (diffDays === 0) {
+            dailyTotal += parseFloat(entry.energy);
+        }
+
+        if (entryDate.getMonth() === currentDate.getMonth() && entryDate.getFullYear() === currentDate.getFullYear()) {
+            monthlyTotal += parseFloat(entry.energy);
+        }
+    });
+
+    dailyProgress.textContent = dailyTotal.toFixed(2);
+    monthlyProgress.textContent = monthlyTotal.toFixed(2);
+}
+
+// Update energy consumption graph
+function updateEnergyGraph(labels, data) {
+    if (energyChart) energyChart.destroy();
+
+    energyChart = new Chart(energyGraph, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Energy Consumption (kWh)',
+                data: data,
+                borderColor: '#3498db',
+                fill: false,
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Energy Consumption (kWh)'
+                    },
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+// Update goal progress graph
+function updateGoalGraph() {
+    if (goalChart) goalChart.destroy();
+
+    goalChart = new Chart(goalGraph, {
+        type: 'bar',
+        data: {
+            labels: ['Daily Progress', 'Monthly Progress'],
+            datasets: [{
+                label: 'Progress vs Goal',
+                data: [dailyProgress.textContent, monthlyProgress.textContent],
+                backgroundColor: ['#3498db', '#2ecc71'],
+                borderColor: ['#2980b9', '#27ae60'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+// Handle time filter change
+timeFilter.addEventListener('change', function() {
+    filterData(timeFilter.value);
+});
+
+// Filter data based on time selection
+function filterData(period) {
+    const data = JSON.parse(localStorage.getItem('energyLog')) || [];
+    const currentDate = new Date();
+    let filteredData = [];
+
+    data.forEach(entry => {
+        const entryDate = new Date(entry.date);
+        if (period === 'daily' && entryDate.toDateString() === currentDate.toDateString()) {
+            filteredData.push(entry);
+        } else if (period === 'weekly' && isSameWeek(entryDate, currentDate)) {
+            filteredData.push(entry);
+        } else if (period === 'monthly' && entryDate.getMonth() === currentDate.getMonth()) {
+            filteredData.push(entry);
+        }
+    });
+
+    loadFilteredData(filteredData);
+}
+
+// Check if two dates are in the same week
+function isSameWeek(date1, date2) {
+    const startOfWeek = date2.getDate() - date2.getDay();
+    const endOfWeek = startOfWeek + 6;
+    const startOfWeekDate = new Date(date2.setDate(startOfWeek));
+    const endOfWeekDate = new Date(date2.setDate(endOfWeek));
+
+    return date1 >= startOfWeekDate && date1 <= endOfWeekDate;
+}
+
+// Display filtered data
+function loadFilteredData(filteredData) {
+    energyTable.innerHTML = '';
+    let total = 0;
+    filteredData.forEach(entry => {
+        const row = energyTable.insertRow();
+        const dateCell = row.insertCell(0);
+        const energyCell = row.insertCell(1);
+        const actionsCell = row.insertCell(2);
+
+        dateCell.textContent = entry.date;
+        energyCell.textContent = entry.energy + ' kWh';
+
+        const editBtn = document.createElement('button');
+        editBtn.textContent = 'Edit';
+        editBtn.onclick = () => editEntry(entry);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.onclick = () => deleteEntry(entry);
+
+        actionsCell.appendChild(editBtn);
+        actionsCell.appendChild(deleteBtn);
+
+        total += parseFloat(entry.energy);
+    });
+
+    totalConsumption.textContent = total.toFixed(2);
+    avgConsumption.textContent = (total / filteredData.length).toFixed(2);
+}
+
+// Edit entry
+function editEntry(index) {
+    const data = JSON.parse(localStorage.getItem('energyLog')) || [];
+    const entry = data[index];
+
+    document.getElementById('date').value = entry.date;
+    document.getElementById('energy').value = entry.energy;
+
+    editingIndex = index;
+}
+
+// Delete entry
+function deleteEntry(index) {
+    const data = JSON.parse(localStorage.getItem('energyLog')) || [];
+    data.splice(index, 1);
+    localStorage.setItem('energyLog', JSON.stringify(data));
+
+    loadData();
+}
+
+// Initialize app
+loadData();
+    </script>
+    <style>
+    /* Reset some default styles */
+body, h1, h2, p, table {
+    margin: 0;
+    padding: 0;
+    font-family:'Times New Roman', Times, serif;
+}
+
+body {
+    /* Background image applied to the entire page */
+    background-image: url('https://thumbs.dreamstime.com/b/globe-moss-forest-europe-environment-concept-55282284.jpg?w=768'); /* Replace with the actual image path */
+    background-size: cover; /* Ensures the image covers the entire page */
+    background-position: center center; /* Centers the background image */
+    background-attachment: fixed; /* Keeps the image fixed when scrolling */
+    color: rgba(255, 255, 255, 0.8); /* Ensures text is visible */
+    padding: 20px;
+    position: relative;
+    font-family:'Times New Roman', Times, serif;
+}
+
+/* Add a dark overlay to improve text readability */
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4); /* Darkens the background */
+    z-index: -1; /* Places the overlay behind the content */
+}
+
+/* Header styling */
+header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 50px 0;
+}
+
+h1 {
+    font-size: 50px;
+    color: rgba(255, 255, 255, 0.8); /* White text to contrast with dark background */
+}
+
+/* Form Section */
+.form-section, .goal-section, .filter-section, .table-section, .summary-section {
+    background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white background */
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    color: black;
+    font-weight: bold;
+    font-size: 1.25rem;
+}
+
+/* Inputs and Buttons */
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 1.75rem;
+}
+
+input[type="date"], input[type="number"], select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+button {
+    background-color: #3498db;
+    color: rgba(255, 255, 255, 0.8);
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 1rem;
+    border-radius: 4px;
+}
+
+button:hover {
+    background-color: #2980b9;
+}
+
+/* Table Section */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    color: green;
+}
+
+table th, table td {
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    text-align: center;
+}
+
+table td button {
+    background-color: #e74c3c;
+    color: rgba(255, 255, 255, 0.8);
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    border-radius: 4px;
+}
+
+table td button:hover {
+    background-color: #c0392b;
+}
+
+/* Section Headings */
+h2 {
+    font-size: 40px;
+    margin-bottom: 10px;
+    color: darkgoldenrod;
+    font-weight: bold;
+    
+}
+
+h3 {
+    font-size: 1.75rem;
+    margin-top: 10px;
+}
+
+/* Graph Section Styling */
+.graph-section, .goal-graph-section {
+    margin-top: 40px;
+}
+.graph-section{
+    color: rgba(255, 255, 255, 0.8);
+    border: rgba(255, 255, 255, 0.8);
+    background-color: rgba(255, 255, 255, 0.8);
+}
+canvas {
+    width: 100%;
+    height: 400px;
+}
+.goal-graph-section{
+    background-color: rgba(255, 255, 255, 0.8);
+
+}
+.p{
+    font-size: 1.5rem;
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    margin-top: 50px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Additional Section Styling for Clarity */
+.summary-section {
+    background-color: rgba(255, 255, 255, 0.9); /* Lighter background */
+    color: green;
+    font-size: 1.5rem;
+}
+
+.filter-section select {
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    font-size: 1rem;
+}
+
+/* Apply a specific background to the goal section to make it stand out */
+.goal-section {
+    background-color: rgba(52, 152, 219, 0.1); /* Light blue background */
+    background-color: rgba(255, 255, 255, 0.8);
+}
+.summary-section{
+    background-color: rgba(255, 255, 255, 0.8);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    h1 {
+        font-size: 2rem;
+    }
+
+    .form-section, .goal-section, .filter-section, .table-section, .summary-section {
+        padding: 15px;
+    }
+
+    table th, table td {
+        padding: 10px;
+    }
+
+    button {
+        width: 100%;
+        padding: 15px;
+        font-size: 1.2rem;
+    }
+
+    canvas {
+        height: 300px;
+    }
+}
+</style>
+</head>
+<body>
+    <header>
+        <h1>Energy Consumption Tracker</h1>
+        
+    </header>
+
+    <main>
+        <!-- Form to log daily energy consumption -->
+        <section class="form-section">
+            <h2>Log Your Daily Energy Consumption</h2>
+            <form id="energy-form">
+                <label for="date">Date:</label>
+                <input type="date" id="date" >
+                
+                <label for="energy">Energy Consumption (kWh):</label>
+                <input type="number" id="energy" step="0.01" min="0" required placeholder="Energy Consumption">
+
+                <button type="submit">Log Consumption</button>
+            </form>
+        </section>
+
+        <!-- Goals section -->
+        <section class="goal-section">
+            <h2>Set Energy Goals</h2>
+            <label for="daily-goal">Daily Energy Goal (kWh):</label>
+            <input type="number" id="daily-goal" min="0" placeholder="Enter daily goal">
+
+            <label for="monthly-goal">Monthly Energy Goal (kWh):</label>
+            <input type="number" id="monthly-goal" min="0" placeholder="Enter monthly goal">
+
+            <button id="set-goals">Set Goals</button>
+
+            <h3>Goal Progress</h3>
+            <p>Daily Progress: <span id="daily-progress">0</span> / <span id="daily-goal-value">0</span> kWh</p>
+            <p>Monthly Progress: <span id="monthly-progress">0</span> / <span id="monthly-goal-value">0</span> kWh</p>
+        </section>
+
+        <!-- Time Filter section -->
+        <section class="filter-section">
+            <h2>Filter by Time</h2>
+            <select id="time-filter">
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+            </select>
+        </section>
+
+        <!-- Energy Consumption Graph -->
+        <section class="graph-section">
+            <h2>Energy Consumption Graph</h2>
+            <canvas id="energyGraph"></canvas>
+        </section>
+
+        <!-- Goal Progress Graph -->
+        <section class="goal-graph-section">
+            <h2>Goal Progress</h2>
+            <canvas id="goalGraph"></canvas>
+        </section>
+
+        <!-- Energy Log Table -->
+        <section class="table-section">
+            <h2>Energy Consumption Log</h2>
+            <table id="energy-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Energy (kWh)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Table rows dynamically generated here -->
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Summary section for total and average consumption -->
+        <section class="summary-section">
+            <h2>Summary</h2>
+            <p>Total Energy Consumption: <span id="total-consumption">0</span> kWh</p>
+            <p>Average Daily Consumption: <span id="avg-consumption">0</span> kWh</p>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 Energy Tracker</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
